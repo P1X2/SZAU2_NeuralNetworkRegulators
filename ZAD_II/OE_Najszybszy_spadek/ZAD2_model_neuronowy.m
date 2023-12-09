@@ -1,5 +1,5 @@
 clear all 
-load('./Najlepsze_wagi_sieci_exe/N1.mat') % Nn.mat okresla plik z najlepszymi wagami sieci dla n neuronów
+load('./Najlepsze_wagi_OE_NS/N6_NS.mat') 
 
 dane_wer = readmatrix('dane_wer.txt');
 u_wer = dane_wer(:, 1);
@@ -10,7 +10,7 @@ u_ucz = dane_ucz(:, 1);
 y_ucz = dane_ucz(:, 2);
 
 %% 
-dane_ucz = true; % wybór danych
+dane_ucz = false; % wybór danych
 wykresy = true; % włączanie/wyłączanie wykresów
 ARX = false;     % wybór typu modelu 
 
@@ -30,14 +30,14 @@ e = zeros(1, steps);
 
 if ~ARX
     for k=10:steps
-        q = [u(k - 3) u(k -4) y_mod(k-1) y_mod(k-2)];
+        q = [u(k - 3); u(k -4); y_mod(k-1); y_mod(k-2)];
         y_mod(k) = w20 + w2 * tanh(w10 + w1 * q);
         e(k) = y_mod(k) - y(k);
     end
 
 else
     for k=10:steps
-        q(k) = [u(k - 3) u(k -4) y(k-1) y(k-2)];
+        q = [u(k - 3); u(k -4); y(k-1); y(k-2)];
         y_mod(k) = w20 + w2 * tanh(w10 + w1 * q);
         e(k) = y_mod(k) - y(k);
     end
@@ -45,20 +45,22 @@ else
 end
 
 Error = sum(e.^2);
+disp(Error);
 
 if wykresy
     fig1 = figure;
     hold on 
-    plot(y_mod, "DisplayName", 'y_m_o_d');
     plot(y, 'DisplayName', 'y');
+    plot(y_mod, '--', "DisplayName", 'y_m_o_d');
     xlabel('k');
-    ylabel('y')
+    ylabel('y, y_m_o_d')
+    error = strcat('Error = ', int2str(Error));
     if ARX
-        title('Model ARX' + newline + 'Error = ' + Error)
+        title("Model ARX" + newline + error)
     else
-        title('Model OE' + newline + 'Error = ' + Error)
+        title("Model OE" + newline + error)
     end
-    legend()
+    legend('Location','southeast')
 end
 
 
