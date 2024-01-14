@@ -3,7 +3,7 @@ clear all
 % load('OE_BFGS\Najlepsze_wagi_OE_BFGS\N6.mat')
 
 %% Wybór regulatora; definicja zmiennych modelu
-regulator = "GPC"; % PID, GPC, NPL, NO
+regulator = "NPL"; % PID, GPC, NPL, NO
 plots = true;
 steps_sym = 660;
 
@@ -11,11 +11,9 @@ steps_sym = 660;
 % Parametry NPL i GPC
 N = 30;
 Nu = 3;
-Lambda = 0.1;
+Lambda = 50;
 
-
-
-alfa1 = -1.262719;
+alfa1 =  -1.262719;
 alfa2 = 0.329193;
 beta1 = 0.039291;
 beta2 = 0.027184;
@@ -51,11 +49,10 @@ e = zeros(1, steps_sym);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if (strcmp("PID", regulator)) 
     %% Parametry PID-a
-    k = 0.1; % to są najlepsze nastawy, ale do sprawka trzeba wrzucić k = += 0.2
+    k = 0.1; 
     Ti = 12; 
     Td = .1;  
     Tp = 1; 
-    
     
     r0 = k*(1+(Tp/(2*Ti))+(Td/Tp));
     r1 = k*((Tp/(2*Ti))-((2*Td)/Tp)-1);
@@ -92,8 +89,8 @@ if (strcmp("GPC", regulator))
     % zadaniu 2
     load('MNK_współczynniki.mat');
     
-    b = [0 0 w(1) w(2)];
-    a = [-w(3) -w(4)];
+    b = [0 0 W(1) W(2)];
+    a = [-W(3) -W(4)];
     
     
      
@@ -107,14 +104,13 @@ if (strcmp("GPC", regulator))
             b_sum = b_sum + b(ii);
         end
         
-        for jj=1:min(i-1, 2)
-            a_sum = a_sum + (a(jj) * s(i-jj));
+        for ii=1:min(i-1, 2)
+            a_sum = a_sum - (a(ii) * s(i-ii));
         end
         
-        s(i) = b_sum - a_sum;
+        s(i) = b_sum + a_sum;
     end
      
-%     plot(s);
     
     % Macierz M
     M=zeros(N,Nu); 
@@ -123,7 +119,7 @@ if (strcmp("GPC", regulator))
     end
     
     % Współczynnik K
-    K = ((M' * M + Lambda * ones(Nu, Nu))^-1) * M';
+    K = ((M' * M + Lambda * eye(Nu, Nu))^-1) * M';
     
     %% Główna pętla symulacji
 
@@ -140,21 +136,25 @@ if (strcmp("GPC", regulator))
         d = y(k) - y_mod;
 
 
-        % odp. swobodna 
+        %% trajektoria swobodna    
+        Y_swobodny = zeros(1,N);
         for i=1:N
-            y(k+i) = b(3) * u(min(k-1, k-3+i)) + b(4) * u(min(k-1, k-4+i)) - a(1) * y(k+i-1) - a(2) * y(k+i-2) + d;
+
+            if i == 1
+                Y_swobodny(i) = b(3) * u(k-2) + b(4) * u(k-3) - a(1) * y(k) - a(2) * y(k-1) + d;
+            elseif i == 2
+                Y_swobodny(i) = b(3) * u(k-1) + b(4) * u(k-2) - a(1) * Y_swobodny(i-1) - a(2) * y(k) + d;
+            elseif i >= 3
+                Y_swobodny(i) = b(3) * u(k-1) + b(4) * u(k-1) - a(1) * Y_swobodny(i-1) - a(2) * Y_swobodny(i-2) + d;
+            end
+ 
         end
 
-        for
-
-        Y_swobodny = y(k+1:k+N);
         Y_zad = ones(N,1) * yzad(k);
         y = y(1:k);
 
         % wektor du_k
-        du = K * (Y_zad - Y_swobodny);
-
-
+        du = K * (Y_zad - transpose(Y_swobodny));
         u(k) = u(k-1) + du(1);
         
         if u(k) > 1
@@ -189,21 +189,89 @@ if strcmp("NPL", regulator)
 
         
         % trajektoria swobodna
-        for p=1:N
-            q = [u(min(k-1, k-3+i)); u(min(k-1, k-4+i)); y(k+i-1); y(k+i-2)];
-            y(k+p) = w20 + w2 * tanh(w10 + w1 * q);
-        end
-        Y_swobodny = y(k+1:k+N);
-        Y_zad = yzad(k) * ones(N, 1);
+        Y_swobodny = zeros(1,N);
+        for i=1:N
 
+            if i == 1
+                q = [u(k-2); u(k-3); y(k); y(k-1)];
+            elseif i == 2
+                q = [u(k-1); u(k-2); Y_swobodny(i-1); y(k)];
+            elseif i >= 3
+                q = [u(k-1); u(k-1); Y_swobodny(i-1); Y_swobodny(i-2)];
+            end
+             Y_swobodny(i) = w20 + w2 * tanh(w10 + w1 * q);
+        end
+
+        % linearyzacja modelu neuronowego
+        b1 = 0;
+        b2 = 0;
+
+        fi = 1e-4;
+        q = [u(k-3); u(k-4); y(k-1); y(k-2)];
+        f = w20 + w2 * tanh(w10 + w1 * q);
+        %b3
+        qz = [u(k-3) + fi;  u(k-4); y(k-1); y(k-2)];
+        fz = w20 + w2 * tanh(w10 + w1 * qz);
+        b3 = (fz - f) / fi;    
+
+        %b4
+        qz = [u(k-3); u(k-4) + fi; y(k-1); y(k-2)];
+        fz = w20 + w2 * tanh(w10 + w1 * qz);
+        b4 = (fz - f) / fi;    
+    
+        %a1
+        qz = [u(k-3); u(k-4); y(k-1) + fi; y(k-2)];
+        fz = w20 + w2 * tanh(w10 + w1 * qz);
+        a1 = -(fz - f) / fi;    
+    
+        %a2
+        qz = [u(k-3); u(k-4); y(k-1); y(k-2) + fi];
+        fz = w20 + w2 * tanh(w10 + w1 * qz);
+        a2 = -(fz - f) / fi;    
+            
         
+        b = [b1 b2 b3 b4];
+        a = [a1 a2];
+
         % odpowiedź skokowa
+        s = zeros(1,N);
+        for i=1:N
+            b_sum = 0;
+            a_sum = 0;
+        
+            for ii=1:min(i,4)
+                b_sum = b_sum + b(ii);
+            end
+            
+            for ii=1:min(i-1, 2)
+                a_sum = a_sum + (a(ii) * s(i-ii));
+            end
+            
+            s(i) = b_sum - a_sum;
+        end
+
+        plot(s);
+        
+        % macierz M i K
+        M=zeros(N,Nu); 
+        for i=1:Nu
+            M(i:N,i)=s(1:(N-i+1));
+        end
+        
+        K = ((M' * M + Lambda * eye(Nu, Nu))^-1) * M';
     
-    
-    
-    
-    
-    
+        % oblicznie sterowania
+        Y_zad = yzad(k) * ones(N, 1);
+        du = K * (Y_zad - transpose(Y_swobodny));
+        u(k) = u(k-1) + du(1);
+
+        if u(k) < -1
+            u(k) = -1;
+        elseif u(k) > 1
+            u(k) = 1;
+        end
+
+        e(k) = yzad(k) - y(k);
     end
 
 
@@ -262,12 +330,5 @@ if plots == true
     legend('Location','southwest');
     title('Sterowanie');
 
-end
+end 
 
-
-function [] = funreggpc()
-global N Nu yzad y u du d k K b a;
-    
-
-    
-end

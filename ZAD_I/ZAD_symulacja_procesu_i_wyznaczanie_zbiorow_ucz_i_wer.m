@@ -1,6 +1,6 @@
 clear all
 
-zadanie = 3; % 1 - punkt pracy; 2 - charakterystyka statyczna; 3 - generowanie zbioru uczącego i weryfikującego
+zadanie = 2; % 1 - punkt pracy; 2 - charakterystyka statyczna; 3 - generowanie zbioru uczącego i weryfikującego
 
 
 alfa1 =  -1.262719;
