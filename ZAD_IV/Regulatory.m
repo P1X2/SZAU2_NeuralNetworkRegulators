@@ -11,9 +11,9 @@ steps_sym = 660;
 % Parametry NPL i GPC
 N = 30;
 Nu = 3;
-Lambda = 50;
+Lambda = 150;
 
-alfa1 =  -1.262719;
+alfa1 = -1.262719;
 alfa2 = 0.329193;
 beta1 = 0.039291;
 beta2 = 0.027184;
@@ -250,7 +250,6 @@ if strcmp("NPL", regulator)
             s(i) = b_sum - a_sum;
         end
 
-        plot(s);
         
         % macierz M i K
         M=zeros(N,Nu); 
