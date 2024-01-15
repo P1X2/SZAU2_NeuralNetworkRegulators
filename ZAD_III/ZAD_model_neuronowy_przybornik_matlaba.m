@@ -1,107 +1,75 @@
-clear all 
+clear all
+%% !!!! najpierw należy przeprowadzić uczenie przy pomocy danych uczacych -> dane = "ucz"!!!!
+dane = 'ucz'; % wer, ucz
 
-dane_wer = readmatrix('dane_wer.txt');
-u_wer = dane_wer(:, 1);
-y_wer = dane_wer(:, 2);
+if dane == "ucz"
+    load("dane_ucz.txt")
+else
+    load("dane_wer.txt")
+end
 
-dane_ucz = readmatrix('dane_ucz.txt');
-u_ucz = dane_ucz(:, 1);
-y_ucz = dane_ucz(:, 2);
-
-ukm4 = u_ucz(6:length(u_ucz));
-ukm3 = u_ucz(7:length(u_ucz));
-ykm1 = y_ucz(9:length(u_ucz));
-ykm2 = y_ucz(8:length(u_ucz));
-
-ukm4(3996:4000) = 0;
-ukm3(3995:4000) = 0;
-ykm1(3993:4000) = 0;
-ykm2(3994:4000) = 0;
-traning_input = {ukm4; ukm3; ykm1; ykm2};
-
-%alguczenia='traingd';%alg. najszybszego spadku
-alguczenia='trainlm';%alg. Levenberga-Marquardta
-%alguczenia='trainbfg';%alg. zmiennej metryki BFGS
-%alguczenia='traincgf';%alg. gradientów sprzężonych Fletchera-Reevesa
-%alguczenia='traincgp';%alg. gradientów sprzężonych Poljaka-Polaka-Ribiery
-
-
-K=6;%liczba neuronów ukrytych
-net=feedforwardnet(K,alguczenia);
-net.numinputs = 4;
-net.configure(net, traning_input);
-
-
-%sn.performFcn ='mae';%suma modułów błędów/liczba próbek
-%sn.performFcn ='mse';%suma kwadratów błędów/liczba próbek
-net.performFcn ='sse';
-net.trainParam.show = 10;
-net.trainParam.showCommandLine = 1;
-net.trainParam.epochs = 500;
-net.trainParam.goal = 0.0001;
-net.trainParam.showWindow = 1;
-
-
-%dane: tylko zbiór uczący
-net.divideFcn = 'divideind';
-net.divideParam.trainInd = 1:length(y_ucz);
-net.divideParam.valInd = [];
-net.divideParam.testInd = [];
-
-net.input.processFcns = { };
-net.output.processFcns= { };
-
-[net,uczenie]=train(net,traning_input,y_ucz);
-
-ymod_ucz=sim(net,x_ucz);
-
-Eucz=(y_ucz-ymod_ucz)*(y_ucz-ymod_ucz)';
+% deklaracja sieci, jej zmiennych i ustawień
+input_delay = [3 4];
+output_delay = [1 2];
+neuron_number = 6;
+net = narxnet(input_delay, output_delay, neuron_number);
 
 
 
+net.trainFcn = 'trainlm';
+narx_net.divideFcn = '';
+net.trainParam.epochs = 400;
+net.layers{1}.transferFcn = 'tansig';
 
 
+if strcmp(dane, "ucz")
+    X = dane_ucz(:, 1);
+    Y = dane_ucz(:, 2);
+    X = tonndata(X,false,false);
+    Y = tonndata(Y,false,false);
+    [Xs,Xi,Ai,Ts] = preparets(net,X,{},Y);
+    net = train(net, Xs, Ts, Xi, Ai);  
+    Y_pred = sim(net, Xs, Xi, Ai);
 
-semilogy(uczenie.perf,'b');
-xlabel('Iteracje uczące');
-ylabel('Eucz');
+    Y_pred = cell2mat(Y_pred);
+    Y = cell2mat(Y);
+    Y = Y(1:3996);
 
-figure;
-plot(x_ucz,y_ucz,'.b','MarkerSize',14);
-hold on;
-plot(x_ucz,ymod_ucz,'or');
-xlabel('x');
-ylabel('y');
-legend('Dane','Model');
-title(sprintf('Dane uczące, Eucz=%e',Eucz))
+    Error = sum((Y - Y_pred).^2);
 
-figure;
-plot(y_ucz,ymod_ucz,'.b','MarkerSize',14);
-xlabel('Dane uczące');
-ylabel('Model');
-title(sprintf('Eucz=%e',Eucz));
-
-
-% load dane_wer;
-% 
-% ymod_wer=sim(net,x_wer);
-% 
-% Ewer=(y_wer-ymod_wer)*(y_wer-ymod_wer)';
-% 
-% figure;
-% plot(x_wer,y_wer,'.b','MarkerSize',14);
-% hold on;
-% plot(x_wer,ymod_wer,'or');
-% xlabel('x');
-% ylabel('y');
-% legend('Dane','Model');
-% title(sprintf('Dane weryfikujące, Ewer=%e',Ewer))
-% 
-% figure;
-% plot(y_wer,ymod_wer,'.b','MarkerSize',14);
-% xlabel('Dane weryfikujące');
-% ylabel('Model');
-% title(sprintf('Ewer=%e',Ewer));
+    hold on;
+    error = strcat('Error = ', int2str(Error));
+    plot(Y_pred, '-', 'DisplayName',"y_m_o_d")
+    plot(Y,'DisplayName',"y")
+    title("Zbiór uczący" + newline + error)
+    xlabel("k")
+    ylabel("y")
+    legend(Location="northeast")
+    legend('show');
+end
 
 
+if strcmp(dane, "wer")
+    X = dane_wer(:, 1);
+    Y = dane_wer(:, 2);
+    X = tonndata(X,false,false);
+    Y = tonndata(Y,false,false);
+    [Xs,Xi,Ai,Ts] = preparets(net,X,{},Y);
+    Y_pred = sim(net, Xs, Xi, Ai);
+    
+    Y_pred = cell2mat(Y_pred);
+    Y = cell2mat(Y);
+    Y = Y(1:3996);    
 
+    Error = sum((Y - Y_pred).^2);
+
+    hold on;
+    error = strcat('Error = ', int2str(Error));
+    plot(cell2mat(Y_pred), '-', 'DisplayName',"y_m_o_d")
+    plot(cell2mat(Y),'DisplayName',"y")
+    title("Zbiór weryfikujący" + newline + error)
+    xlabel("k")
+    ylabel("y")
+    legend(Location="northeast")
+    legend('show');
+end

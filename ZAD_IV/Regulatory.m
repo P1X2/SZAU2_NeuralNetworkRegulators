@@ -1,9 +1,7 @@
 clear all
-% wagi najlepszego modelu uczonegi w trybie rekurencyjnym
-% load('OE_BFGS\Najlepsze_wagi_OE_BFGS\N6.mat')
 
 %% Wybór regulatora; definicja zmiennych modelu
-regulator = "NPL"; % PID, GPC, NPL, NO
+regulator = "NPL"; % PID, GPC, NPL
 plots = true;
 steps_sym = 660;
 
@@ -12,6 +10,7 @@ steps_sym = 660;
 N = 30;
 Nu = 3;
 Lambda = 150;
+
 
 alfa1 = -1.262719;
 alfa2 = 0.329193;
@@ -172,7 +171,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if strcmp("NPL", regulator)
 
-    load('OE_BFGS\Najlepsze_wagi_OE_BFGS\N6.mat')
+    load('N6.mat')
     
     for k=10:steps_sym
     
@@ -272,37 +271,9 @@ if strcmp("NPL", regulator)
 
         e(k) = yzad(k) - y(k);
     end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 end
+
+
 
 error_sum = sum(e.^2);
 
@@ -330,4 +301,7 @@ if plots == true
     title('Sterowanie');
 
 end 
+
+
+
 
