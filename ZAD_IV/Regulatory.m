@@ -9,7 +9,7 @@ steps_sym = 660;
 % Parametry NPL i GPC
 N = 30;
 Nu = 3;
-Lambda = 150;
+Lambda = 50;
 
 
 alfa1 = -1.262719;
